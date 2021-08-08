@@ -102,10 +102,10 @@ func (p *Parser) check(t TokenType) bool {
 	return p.peek().Type == t
 }
 
-func (p *Parser) consume(t TokenType, msg string) *Token {
-	if p.check(t) { return p.advance() }
+func (p *Parser) consume(t TokenType, msg string) *Token, err {
+	if p.check(t) { return p.advance(), nil }
 
-	
+	return nil, 
 }
 
 func (p *Parser) isAtEnd() bool {
