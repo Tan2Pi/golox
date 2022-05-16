@@ -1,13 +1,7 @@
 package lox
 
-import (
-	"fmt"
-	//"strconv"
-	"strings"
-)
-
 type Parser struct {
-	tokens []*Token
+	tokens  []*Token
 	current int
 }
 
@@ -18,8 +12,8 @@ func NewParser(tokens []*Token) *Parser {
 func (p *Parser) comparison() Expr {
 	expr := p.term()
 
-	for match(Greater, GreaterEqual, Less, LessEqual) {
-		operator := p.previous() 
+	for p.match(Greater, GreaterEqual, Less, LessEqual) {
+		operator := p.previous()
 		right := p.term()
 		expr = &Binary{expr, operator, right}
 	}
@@ -44,7 +38,7 @@ func (p *Parser) equality() Expr {
 
 func (p *Parser) factor() Expr {
 	expr := p.unary()
-	
+
 	for p.match(Slash, Star) {
 		operator := p.previous()
 		right := p.unary()
@@ -55,15 +49,21 @@ func (p *Parser) factor() Expr {
 }
 
 func (p *Parser) primary() Expr {
-	if match(False) { return &Literal{false} }
-	if match(True) { return &Literal{true} }
-	if match(Nil) { return &Literal{nil} }
-
-	if match(Number, String) {
-		return &Literal{ p.previous().Literal }
+	if p.match(False) {
+		return &Literal{false}
+	}
+	if p.match(True) {
+		return &Literal{true}
+	}
+	if p.match(Nil) {
+		return &Literal{nil}
 	}
 
-	if match(LeftParen) {
+	if p.match(Number, String) {
+		return &Literal{p.previous().Literal}
+	}
+
+	if p.match(LeftParen) {
 		expr := p.expression()
 		p.consume(RightParen, "Expect ')' after expression.")
 		return &Grouping{expr}
@@ -83,7 +83,7 @@ func (p *Parser) term() Expr {
 }
 
 func (p *Parser) unary() Expr {
-	if match(Bang, Minus) {
+	if p.match(Bang, Minus) {
 		operator := p.previous()
 		right := p.unary()
 		return &Unary{operator, right}
@@ -102,10 +102,16 @@ func (p *Parser) check(t TokenType) bool {
 	return p.peek().Type == t
 }
 
-func (p *Parser) consume(t TokenType, msg string) *Token, err {
-	if p.check(t) { return p.advance(), nil }
+func (p *Parser) consume(t TokenType, msg string) (*Token, error) {
+	if p.check(t) {
+		return p.advance(), nil
+	}
 
-	return nil, 
+	return nil, p.error(*p.peek(), msg)
+}
+
+func (p *Parser) error(t Token, msg string) {
+	err := NewLoxError(t.Line, msg)
 }
 
 func (p *Parser) isAtEnd() bool {
@@ -113,7 +119,7 @@ func (p *Parser) isAtEnd() bool {
 }
 
 func (p *Parser) match(types ...TokenType) bool {
-	for t := range types {
+	for _, t := range types {
 		if p.check(t) {
 			p.advance()
 			return true
@@ -124,9 +130,16 @@ func (p *Parser) match(types ...TokenType) bool {
 }
 
 func (p *Parser) peek() *Token {
-	return tokens[current]
+	return p.tokens[p.current]
 }
 
 func (p *Parser) previous() *Token {
-	return tokens[current-1]
+	return p.tokens[p.current-1]
+}
+
+func (p *Parser) advance() *Token {
+	if !p.isAtEnd() {
+		p.current++
+	}
+	return p.previous()
 }
