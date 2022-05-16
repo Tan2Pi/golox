@@ -23,3 +23,12 @@ func (e *LoxError) Error() string {
 func report(line int, where string, message string) string {
 	return fmt.Sprintf("[line %v] Error %v: %v", line, where, message)
 }
+
+type ParseError struct {
+	token Token
+	msg string
+}
+
+func (e *ParseError) Error() string {
+	
+}

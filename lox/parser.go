@@ -102,10 +102,14 @@ func (p *Parser) check(t TokenType) bool {
 	return p.peek().Type == t
 }
 
-func (p *Parser) consume(t TokenType, msg string) *Token, err {
+func (p *Parser) consume(t TokenType, msg string) *Token, error {
 	if p.check(t) { return p.advance(), nil }
 
-	return nil, 
+	return nil, p.error(p.peek(), msg) 
+}
+
+func (p *Parser) error(t Token, msg string) {
+	err := NewLoxError()
 }
 
 func (p *Parser) isAtEnd() bool {
