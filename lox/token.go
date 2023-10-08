@@ -1,19 +1,11 @@
 package lox
 
-import (
-//"fmt"
-)
-
 type Token struct {
 	Type    TokenType
 	Lexeme  string
-	Literal interface{}
+	Literal any
 	Line    int
 }
-
-// func (t *Token) String() string {
-// 	return fmt.Sprintf("Type: '%s', Lexeme: '%s', Literal: '%s', Line: %d", t.Type, t.Lexeme, t.Literal, t.Line)
-// }
 
 // go:generate stringer -type=TokenType
 type TokenType int

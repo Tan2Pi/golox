@@ -1,0 +1,21 @@
+# Ignore build artifacts
+build/
+dist/
+*.exe
+*.dll
+
+# Ignore dependencies
+node_modules/
+vendor/
+
+# Ignore logs and temp files
+logs/
+*.log
+*.swp
+*.tmp
+# Ignore IDE files
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+build/

@@ -2,6 +2,7 @@ package lox
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 )
 
@@ -18,6 +19,12 @@ func NewScanner(source string) *Scanner {
 }
 
 func (s *Scanner) ScanTokens() []*Token {
+	defer func() {
+		if err := recover(); err != nil {
+			HadError = true
+			fmt.Fprintln(os.Stderr, err.(error).Error())
+		}
+	}()
 	for !s.isAtEnd() {
 		s.start = s.current
 		s.scanToken()
@@ -68,17 +75,18 @@ func (s *Scanner) scanToken() {
 		s.addToken(t)
 	case '/':
 		if s.match('/') {
-			for s.peek() != '\n' && !s.isAtEnd() {
+			for !s.isAtEnd() && s.peek() != '\n' {
 				s.advance()
 			}
 		} else {
 			s.addToken(Slash)
 		}
-	case ' ', '\r', '\t':
-	case '\n':
-		s.line++
 	case '"':
 		s.stringify()
+	case ' ', '\r', '\t':
+		// Ignore whitespace
+	case '\n':
+		s.line++
 	default:
 		if isDigit(c) {
 			s.number()
@@ -86,7 +94,7 @@ func (s *Scanner) scanToken() {
 			s.identifier()
 		} else {
 			err := NewLoxError(s.line, "Unexpected character.")
-			fmt.Println(err)
+			fmt.Fprintln(os.Stderr, err.Error())
 		}
 	}
 }
@@ -105,49 +113,45 @@ func (s *Scanner) identifier() {
 }
 
 func (s *Scanner) number() {
-	isInt := true
 	for isDigit(s.peek()) {
 		s.advance()
 	}
 
 	if s.peek() == '.' && isDigit(s.peekNext()) {
 		s.advance()
-		isInt = false
 		for isDigit(s.peek()) {
 			s.advance()
 		}
 	}
 	value := string([]rune(s.source)[s.start:s.current])
-	fmt.Println(value)
 	num, err := strconv.ParseFloat(value, 32)
 	if err != nil {
-		// do something
+		err := NewLoxError(s.line, "Invalid Number.")
+		fmt.Println(err)
 	}
-	if isInt {
-		s.createToken(Number, int(num))
-	} else {
-		s.createToken(Number, num)
-	}
+	s.createToken(Number, num)
 }
 
 func (s *Scanner) stringify() {
 	for s.peek() != '"' && !s.isAtEnd() {
+		//fmt.Printf("%s\n", string(s.peek()))
 		if s.peek() == '\n' {
 			s.line++
 		}
 		s.advance()
 	}
+	//fmt.Printf("%s\n", string(s.peek()))
 
 	if s.isAtEnd() {
-		err := NewLoxError(s.line, "Unterminated string.")
-		fmt.Println(err)
-		return
+		panic(NewLoxError(s.line, "Unterminated string."))
 	}
 
 	s.advance()
-	runes := []rune(s.source)
-	value := string(runes[s.start+1:s.current-1])
-	s.createToken(String, value)
+	// runes := []rune(s.source)
+	// value := string(runes[s.start+1 : s.current-1])
+	v2 := s.source[s.start+1 : s.current-1]
+	//fmt.Printf("v2: %s\n", v2)
+	s.createToken(String, v2)
 }
 
 func (s *Scanner) match(expected rune) bool {
@@ -159,7 +163,7 @@ func (s *Scanner) match(expected rune) bool {
 	}
 
 	s.current++
-	return false
+	return true
 }
 
 func (s *Scanner) peek() rune {
@@ -170,7 +174,7 @@ func (s *Scanner) peek() rune {
 }
 
 func (s *Scanner) peekNext() rune {
-	if s.current + 1 >= len(s.source) {
+	if s.current+1 >= len(s.source) {
 		return rune(0)
 	}
 	return []rune(s.source)[s.current+1]
@@ -186,7 +190,7 @@ func (s *Scanner) addToken(kind TokenType) {
 	s.createToken(kind, nil)
 }
 
-func (s *Scanner) createToken(kind TokenType, literal interface{}) {
+func (s *Scanner) createToken(kind TokenType, literal any) {
 	runes := []rune(s.source)
 	text := string(runes[s.start:s.current])
 	s.tokens = append(s.tokens, &Token{kind, text, literal, s.line})
@@ -217,20 +221,20 @@ func mimicTernary(condition bool, valIfTrue TokenType, valIfFalse TokenType) Tok
 }
 
 var keywords = map[string]TokenType{
-	"and": And,
-	"class": Class,
-	"else": Else,
-	"false": False,
-	"for": For,
-	"fun": Fun,
-	"if": If,
-	"nil": Nil,
-	"or": Or,
-	"print": Print,
+	"and":    And,
+	"class":  Class,
+	"else":   Else,
+	"false":  False,
+	"for":    For,
+	"fun":    Fun,
+	"if":     If,
+	"nil":    Nil,
+	"or":     Or,
+	"print":  Print,
 	"return": Return,
-	"super": Super,
-	"this": This,
-	"true": True,
-	"var": Var, 
-	"while": While,
+	"super":  Super,
+	"this":   This,
+	"true":   True,
+	"var":    Var,
+	"while":  While,
 }
