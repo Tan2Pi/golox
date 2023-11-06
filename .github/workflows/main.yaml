@@ -8,5 +8,5 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Hello world action step
-        uses: ./.github/actions/action.yaml
+        uses: ./.github/actions
         id: glox_test
