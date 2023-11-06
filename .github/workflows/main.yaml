@@ -10,4 +10,4 @@ jobs:
       - name: Build docker test image
         run: docker build -t golox:test .
       - name: Run test suite
-        run: docker run -it golox:test
+        run: docker run golox:test
