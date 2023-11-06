@@ -8,6 +8,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Build docker test image
-        run: docker build -t local < .devcontainer/Dockerfile
+        run: docker build -t local .
       - name: Run test suite
         run: docker run -it local
