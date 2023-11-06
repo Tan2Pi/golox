@@ -8,6 +8,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Build docker test image
-        run: docker build -t local .
+        run: docker build -t golox:test .
       - name: Run test suite
-        run: docker run -it local
+        run: docker run -it golox:test
