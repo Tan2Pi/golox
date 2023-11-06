@@ -1,6 +1,12 @@
-package lox
+package interpreter
 
-import "fmt"
+import (
+	"fmt"
+	"golox/lox"
+	"golox/lox/environment"
+	"golox/lox/stmt"
+	"golox/lox/tokens"
+)
 
 type Callable interface {
 	Call(i *Interpreter, args []any) any
@@ -8,12 +14,12 @@ type Callable interface {
 }
 
 type Function struct {
-	Declaration *FunctionStmt
-	Closure     *Environment
+	Declaration *stmt.Function
+	Closure     *environment.Env
 	isInit      bool
 }
 
-func NewFunction(declaration *FunctionStmt, closure *Environment, isInit bool) *Function {
+func NewFunction(declaration *stmt.Function, closure *environment.Env, isInit bool) *Function {
 	return &Function{
 		Declaration: declaration,
 		Closure:     closure,
@@ -22,14 +28,14 @@ func NewFunction(declaration *FunctionStmt, closure *Environment, isInit bool) *
 }
 
 func (f *Function) Bind(instance *LoxInstance) *Function {
-	env := NewEnv()
+	env := environment.New()
 	env.SetEnv(f.Closure)
 	env.Define("this", instance)
 	return NewFunction(f.Declaration, env, f.isInit)
 }
 
 func (f *Function) Call(i *Interpreter, args []any) (returnable any) {
-	env := NewEnv()
+	env := environment.New()
 	env.SetEnv(f.Closure)
 
 	for i := range f.Declaration.Params {
@@ -39,7 +45,7 @@ func (f *Function) Call(i *Interpreter, args []any) (returnable any) {
 	defer func() {
 		if r := recover(); r != nil {
 			switch ret := r.(type) {
-			case ReturnValue:
+			case lox.ReturnValue:
 				if f.isInit {
 					returnable = f.Closure.GetAt(0, "this")
 					return
@@ -58,8 +64,7 @@ func (f *Function) Call(i *Interpreter, args []any) (returnable any) {
 		return
 	}
 	if ret != nil {
-		//fmt.Printf("got ret: %v", ret)
-		if ret, ok := ret.(ReturnValue); ok {
+		if ret, ok := ret.(lox.ReturnValue); ok {
 			returnable = ret.Value
 			return
 		}
@@ -75,19 +80,21 @@ func (f *Function) String() string {
 	return fmt.Sprintf("<fn %s>", f.Declaration.Name.Lexeme)
 }
 
-type LoxClass struct {
-	Name    string
-	methods map[string]*Function
+type Class struct {
+	Name       string
+	SuperClass *Class
+	methods    map[string]*Function
 }
 
-func NewLoxClass(name string, methods map[string]*Function) *LoxClass {
-	return &LoxClass{
-		Name:    name,
-		methods: methods,
+func NewClass(name string, superClass *Class, methods map[string]*Function) *Class {
+	return &Class{
+		Name:       name,
+		SuperClass: superClass,
+		methods:    methods,
 	}
 }
 
-func (c *LoxClass) Call(i *Interpreter, args []any) any {
+func (c *Class) Call(i *Interpreter, args []any) any {
 	instance := NewLoxInstance(c)
 	init := c.FindMethod("init")
 	if init != nil {
@@ -96,7 +103,7 @@ func (c *LoxClass) Call(i *Interpreter, args []any) any {
 	return instance
 }
 
-func (c *LoxClass) Arity() int {
+func (c *Class) Arity() int {
 	init := c.FindMethod("init")
 	if init == nil {
 		return 0
@@ -104,30 +111,33 @@ func (c *LoxClass) Arity() int {
 	return init.Arity()
 }
 
-func (c *LoxClass) FindMethod(name string) *Function {
+func (c *Class) FindMethod(name string) *Function {
 	if method, ok := c.methods[name]; ok {
 		return method
+	}
+	if c.SuperClass != nil {
+		return c.SuperClass.FindMethod(name)
 	}
 	return nil
 }
 
-func (c *LoxClass) String() string {
+func (c *Class) String() string {
 	return c.Name
 }
 
 type LoxInstance struct {
-	Class  *LoxClass
+	Class  *Class
 	fields map[string]any
 }
 
-func NewLoxInstance(class *LoxClass) *LoxInstance {
+func NewLoxInstance(class *Class) *LoxInstance {
 	return &LoxInstance{
 		Class:  class,
 		fields: make(map[string]any),
 	}
 }
 
-func (i *LoxInstance) Get(name Token) any {
+func (i *LoxInstance) Get(name tokens.Token) any {
 	//fmt.Printf("get: token: %+v, instance: %+v\n", name, i.fields)
 	if val, ok := i.fields[name.Lexeme]; ok {
 		return val
@@ -137,10 +147,10 @@ func (i *LoxInstance) Get(name Token) any {
 		return method.Bind(i)
 	}
 
-	panic(NewRuntimeError(name, fmt.Sprintf("Undefined property '%s'.", name.Lexeme)))
+	panic(lox.NewRuntimeError(name, fmt.Sprintf("Undefined property '%s'.", name.Lexeme)))
 }
 
-func (i *LoxInstance) Set(name Token, value any) {
+func (i *LoxInstance) Set(name tokens.Token, value any) {
 	i.fields[name.Lexeme] = value
 	//fmt.Printf("set: token: %+v, instance: %+v\n", name, i.fields)
 }

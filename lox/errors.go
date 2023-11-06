@@ -2,6 +2,7 @@ package lox
 
 import (
 	"fmt"
+	"golox/lox/tokens"
 	"os"
 )
 
@@ -15,7 +16,7 @@ type LoxError struct {
 }
 
 type RuntimeError struct {
-	Token Token
+	Token tokens.Token
 	Msg   string
 }
 
@@ -29,12 +30,12 @@ func (e *RuntimeError) Error() string {
 	return fmt.Sprintf("%v\n[line %+v]", e.Msg, e.Token.Line)
 }
 
-func NewRuntimeError(token Token, msg string) *RuntimeError {
+func NewRuntimeError(token tokens.Token, msg string) *RuntimeError {
 	return &RuntimeError{Token: token, Msg: msg}
 }
 
-func LoxErrorHandler(token Token, message string) {
-	if token.Type == Eof {
+func LoxErrorHandler(token tokens.Token, message string) {
+	if token.Type == tokens.Eof {
 		report(token.Line, "at end", message)
 	} else {
 		report(token.Line, "at '"+token.Lexeme+"'", message)
@@ -59,12 +60,12 @@ func reportString(line int, where string, message string) string {
 }
 
 type ParseError struct {
-	token Token
-	msg   string
+	Token tokens.Token
+	Msg   string
 }
 
 func (e ParseError) Error() string {
-	return reportString(e.token.Line, "", e.msg)
+	return reportString(e.Token.Line, "", e.Msg)
 }
 
 type ReturnValue struct {

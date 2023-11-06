@@ -1,12 +1,14 @@
-package lox
+package interpreter
 
 import (
 	"fmt"
+	"golox/lox"
+	"golox/lox/tokens"
 	"time"
 )
 
 type Instance interface {
-	Get(name Token) any
+	Get(name tokens.Token) any
 }
 
 type Clock struct{}
@@ -50,7 +52,7 @@ func (l *LoxListInstance) Call(i *Interpreter, args []any) any {
 	return nil
 }
 
-func (l *LoxListInstance) Get(name Token) any {
+func (l *LoxListInstance) Get(name tokens.Token) any {
 
 	if name.Lexeme == "append" {
 		appender := new(LoxListAppend)
@@ -62,7 +64,7 @@ func (l *LoxListInstance) Get(name Token) any {
 		return getter
 	}
 
-	panic(NewRuntimeError(name, fmt.Sprintf("Undefined property '%s'.", name.Lexeme)))
+	panic(lox.NewRuntimeError(name, fmt.Sprintf("Undefined property '%s'.", name.Lexeme)))
 }
 
 func (l *LoxListInstance) Arity() int {
@@ -131,7 +133,7 @@ func (l *LoxMapInstance) Call(i *Interpreter, args []any) any {
 	return nil
 }
 
-func (l *LoxMapInstance) Get(name Token) any {
+func (l *LoxMapInstance) Get(name tokens.Token) any {
 	if name.Lexeme == "put" {
 		putter := new(LoxMapPut)
 		putter.LoxMapInstance = l
@@ -142,7 +144,7 @@ func (l *LoxMapInstance) Get(name Token) any {
 		return getter
 	}
 
-	panic(NewRuntimeError(name, fmt.Sprintf("Undefined property '%s'.", name.Lexeme)))
+	panic(lox.NewRuntimeError(name, fmt.Sprintf("Undefined property '%s'.", name.Lexeme)))
 }
 
 func (l *LoxMapInstance) Arity() int {

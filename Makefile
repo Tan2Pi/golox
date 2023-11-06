@@ -1,9 +1,10 @@
 .PHONY: build test
 
 GO=go
+TAG=golox:latest
 
 build:
-	$(GO) build -o build/glox ./cmd/...
+	docker build -t $(TAG) .
 
 test: build
-	cd ../craftinginterpreters && dart tool/bin/test.dart chap12_classes -i ../golox/build/glox
+	docker run -it $(TAG)

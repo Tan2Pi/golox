@@ -1,29 +1,37 @@
-package lox
+package environment
 
-import "fmt"
+import (
+	"fmt"
+	"golox/lox"
+	"golox/lox/tokens"
+)
 
-type Environment struct {
-	enclosing *Environment
+type Env struct {
+	enclosing *Env
 	values    map[string]any
 }
 
-func NewEnv() *Environment {
-	return &Environment{
+func New() *Env {
+	return &Env{
 		enclosing: nil,
 		values:    make(map[string]any),
 	}
 }
 
-func (e *Environment) SetEnv(enclosing *Environment) {
+func (e *Env) SetEnv(enclosing *Env) {
 	e.enclosing = enclosing
 }
 
-func (e *Environment) Define(name string, value any) {
+func (e *Env) Enclosing() *Env {
+	return e.enclosing
+}
+
+func (e *Env) Define(name string, value any) {
 	e.values[name] = value
 	//fmt.Printf("env: %+v", e.values)
 }
 
-func (e *Environment) Assign(name Token, value any) {
+func (e *Env) Assign(name tokens.Token, value any) {
 	if _, ok := e.values[name.Lexeme]; ok {
 		e.values[name.Lexeme] = value
 		return
@@ -34,12 +42,12 @@ func (e *Environment) Assign(name Token, value any) {
 		return
 	}
 
-	panic(NewRuntimeError(name,
+	panic(lox.NewRuntimeError(name,
 		fmt.Sprintf("Undefined variable '%s'.", name.Lexeme),
 	))
 }
 
-func (e *Environment) Get(name Token) any {
+func (e *Env) Get(name tokens.Token) any {
 	//fmt.Printf("env: %+v", e.values)
 	if val, ok := e.values[name.Lexeme]; ok {
 		return val
@@ -49,21 +57,21 @@ func (e *Environment) Get(name Token) any {
 		return e.enclosing.Get(name)
 	}
 
-	panic(NewRuntimeError(name,
+	panic(lox.NewRuntimeError(name,
 		fmt.Sprintf("Undefined variable '%s'.", name.Lexeme),
 	))
 
 }
 
-func (e *Environment) GetAt(dist int, name string) any {
+func (e *Env) GetAt(dist int, name string) any {
 	return e.ancestor(dist).values[name]
 }
 
-func (e *Environment) AssignAt(dist int, name Token, value any) {
+func (e *Env) AssignAt(dist int, name tokens.Token, value any) {
 	e.ancestor(dist).values[name.Lexeme] = value
 }
 
-func (e *Environment) ancestor(dist int) *Environment {
+func (e *Env) ancestor(dist int) *Env {
 	ancestor := e
 	for i := 0; i < dist; i++ {
 		ancestor = ancestor.enclosing

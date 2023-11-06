@@ -1,10 +1,10 @@
-package lox
+package stack
 
 type Stack[T any] struct {
 	items []T
 }
 
-func NewStack[T any]() *Stack[T] {
+func New[T any]() *Stack[T] {
 	return &Stack[T]{
 		items: make([]T, 0),
 	}

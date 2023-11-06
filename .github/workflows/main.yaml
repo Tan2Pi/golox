@@ -1,0 +1,13 @@
+on: [push]
+
+jobs:
+  golox_test:
+    runs-on: ubuntu-latest
+    name: Test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Build docker test image
+        run: docker build -t golox:test .
+      - name: Run test suite
+        run: docker run golox:test
