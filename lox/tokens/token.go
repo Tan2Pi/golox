@@ -1,4 +1,4 @@
-package lox
+package tokens
 
 type Token struct {
 	Type    TokenType

@@ -1,27 +1,29 @@
-package lox
+package scanner
 
 import (
 	"fmt"
+	"golox/lox"
+	"golox/lox/tokens"
 	"os"
 	"strconv"
 )
 
 type Scanner struct {
 	source  string
-	tokens  []*Token
+	tokens  []*tokens.Token
 	start   int
 	current int
 	line    int
 }
 
-func NewScanner(source string) *Scanner {
-	return &Scanner{source: source, tokens: make([]*Token, 0), start: 0, current: 0, line: 1}
+func New(source string) *Scanner {
+	return &Scanner{source: source, tokens: make([]*tokens.Token, 0), start: 0, current: 0, line: 1}
 }
 
-func (s *Scanner) ScanTokens() []*Token {
+func (s *Scanner) ScanTokens() []*tokens.Token {
 	defer func() {
 		if err := recover(); err != nil {
-			HadError = true
+			lox.HadError = true
 			fmt.Fprintln(os.Stderr, err.(error).Error())
 		}
 	}()
@@ -30,7 +32,7 @@ func (s *Scanner) ScanTokens() []*Token {
 		s.scanToken()
 	}
 
-	s.tokens = append(s.tokens, &Token{Eof, "", nil, s.line})
+	s.tokens = append(s.tokens, &tokens.Token{Type: tokens.Eof, Lexeme: "", Literal: nil, Line: s.line})
 	return s.tokens
 }
 
@@ -42,36 +44,36 @@ func (s *Scanner) scanToken() {
 	c := s.advance()
 	switch c {
 	case '(':
-		s.addToken(LeftParen)
+		s.addToken(tokens.LeftParen)
 	case ')':
-		s.addToken(RightParen)
+		s.addToken(tokens.RightParen)
 	case '{':
-		s.addToken(LeftBrace)
+		s.addToken(tokens.LeftBrace)
 	case '}':
-		s.addToken(RightBrace)
+		s.addToken(tokens.RightBrace)
 	case ',':
-		s.addToken(Comma)
+		s.addToken(tokens.Comma)
 	case '.':
-		s.addToken(Dot)
+		s.addToken(tokens.Dot)
 	case '-':
-		s.addToken(Minus)
+		s.addToken(tokens.Minus)
 	case '+':
-		s.addToken(Plus)
+		s.addToken(tokens.Plus)
 	case ';':
-		s.addToken(Semicolon)
+		s.addToken(tokens.Semicolon)
 	case '*':
-		s.addToken(Star)
+		s.addToken(tokens.Star)
 	case '!':
-		t := mimicTernary(s.match('='), BangEqual, Bang)
+		t := mimicTernary(s.match('='), tokens.BangEqual, tokens.Bang)
 		s.addToken(t)
 	case '=':
-		t := mimicTernary(s.match('='), EqualEqual, Equal)
+		t := mimicTernary(s.match('='), tokens.EqualEqual, tokens.Equal)
 		s.addToken(t)
 	case '<':
-		t := mimicTernary(s.match('='), LessEqual, Less)
+		t := mimicTernary(s.match('='), tokens.LessEqual, tokens.Less)
 		s.addToken(t)
 	case '>':
-		t := mimicTernary(s.match('='), GreaterEqual, Greater)
+		t := mimicTernary(s.match('='), tokens.GreaterEqual, tokens.Greater)
 		s.addToken(t)
 	case '/':
 		if s.match('/') {
@@ -79,9 +81,10 @@ func (s *Scanner) scanToken() {
 				s.advance()
 			}
 		} else {
-			s.addToken(Slash)
+			s.addToken(tokens.Slash)
 		}
 	case '"':
+
 		s.stringify()
 	case ' ', '\r', '\t':
 		// Ignore whitespace
@@ -93,7 +96,7 @@ func (s *Scanner) scanToken() {
 		} else if isAlpha(c) {
 			s.identifier()
 		} else {
-			err := NewLoxError(s.line, "Unexpected character.")
+			err := lox.NewLoxError(s.line, "Unexpected character.")
 			fmt.Fprintln(os.Stderr, err.Error())
 		}
 	}
@@ -107,7 +110,7 @@ func (s *Scanner) identifier() {
 	text := string([]rune(s.source)[s.start:s.current])
 	t, exists := keywords[text]
 	if !exists {
-		t = Identifier
+		t = tokens.Identifier
 	}
 	s.addToken(t)
 }
@@ -126,10 +129,10 @@ func (s *Scanner) number() {
 	value := string([]rune(s.source)[s.start:s.current])
 	num, err := strconv.ParseFloat(value, 32)
 	if err != nil {
-		err := NewLoxError(s.line, "Invalid Number.")
+		err := lox.NewLoxError(s.line, "Invalid Number.")
 		fmt.Println(err)
 	}
-	s.createToken(Number, num)
+	s.createToken(tokens.Number, num)
 }
 
 func (s *Scanner) stringify() {
@@ -143,7 +146,7 @@ func (s *Scanner) stringify() {
 	//fmt.Printf("%s\n", string(s.peek()))
 
 	if s.isAtEnd() {
-		panic(NewLoxError(s.line, "Unterminated string."))
+		panic(lox.NewLoxError(s.line, "Unterminated string."))
 	}
 
 	s.advance()
@@ -151,7 +154,7 @@ func (s *Scanner) stringify() {
 	// value := string(runes[s.start+1 : s.current-1])
 	v2 := s.source[s.start+1 : s.current-1]
 	//fmt.Printf("v2: %s\n", v2)
-	s.createToken(String, v2)
+	s.createToken(tokens.String, v2)
 }
 
 func (s *Scanner) match(expected rune) bool {
@@ -186,14 +189,18 @@ func (s *Scanner) advance() rune {
 	return currentChar
 }
 
-func (s *Scanner) addToken(kind TokenType) {
+func (s *Scanner) addToken(kind tokens.TokenType) {
 	s.createToken(kind, nil)
 }
 
-func (s *Scanner) createToken(kind TokenType, literal any) {
+func (s *Scanner) createToken(kind tokens.TokenType, literal any) {
 	runes := []rune(s.source)
 	text := string(runes[s.start:s.current])
-	s.tokens = append(s.tokens, &Token{kind, text, literal, s.line})
+	s.tokens = append(s.tokens, &tokens.Token{
+		Type:    kind,
+		Lexeme:  text,
+		Literal: literal,
+		Line:    s.line})
 }
 
 func isAlpha(c rune) bool {
@@ -212,7 +219,7 @@ func (s *Scanner) currentChar() rune {
 	return rune(s.source[s.current])
 }
 
-func mimicTernary(condition bool, valIfTrue TokenType, valIfFalse TokenType) TokenType {
+func mimicTernary(condition bool, valIfTrue tokens.TokenType, valIfFalse tokens.TokenType) tokens.TokenType {
 	if condition {
 		return valIfTrue
 	} else {
@@ -220,21 +227,21 @@ func mimicTernary(condition bool, valIfTrue TokenType, valIfFalse TokenType) Tok
 	}
 }
 
-var keywords = map[string]TokenType{
-	"and":    And,
-	"class":  Class,
-	"else":   Else,
-	"false":  False,
-	"for":    For,
-	"fun":    Fun,
-	"if":     If,
-	"nil":    Nil,
-	"or":     Or,
-	"print":  Print,
-	"return": Return,
-	"super":  Super,
-	"this":   This,
-	"true":   True,
-	"var":    Var,
-	"while":  While,
+var keywords = map[string]tokens.TokenType{
+	"and":    tokens.And,
+	"class":  tokens.Class,
+	"else":   tokens.Else,
+	"false":  tokens.False,
+	"for":    tokens.For,
+	"fun":    tokens.Fun,
+	"if":     tokens.If,
+	"nil":    tokens.Nil,
+	"or":     tokens.Or,
+	"print":  tokens.Print,
+	"return": tokens.Return,
+	"super":  tokens.Super,
+	"this":   tokens.This,
+	"true":   tokens.True,
+	"var":    tokens.Var,
+	"while":  tokens.While,
 }

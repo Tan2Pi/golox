@@ -1,0 +1,12 @@
+on: [push]
+
+jobs:
+  golox_test:
+    runs-on: ubuntu-latest
+    name: Test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Hello world action step
+        uses: ./.github/actions/action.yaml
+        id: glox_test

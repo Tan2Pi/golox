@@ -7,10 +7,14 @@ import (
 
 	"bufio"
 	"golox/lox"
+	"golox/lox/interpreter"
+	"golox/lox/parser"
+	"golox/lox/resolver"
+	"golox/lox/scanner"
 	"os"
 )
 
-var interpreter *lox.Interpreter = lox.NewInterpreter()
+var i = interpreter.NewInterpreter()
 
 func main() {
 	if len(os.Args) > 2 {
@@ -56,24 +60,24 @@ func runPrompt() {
 }
 
 func run(source string) {
-	scanner := lox.NewScanner(source)
+	scanner := scanner.New(source)
 	tokens := scanner.ScanTokens()
 	if lox.HadError {
 		return
 	}
 
-	parser := lox.NewParser(tokens)
+	parser := parser.New(tokens)
 	statements := parser.Parse()
 	if lox.HadError {
 		return
 	}
 
-	resolver := lox.NewResolver(interpreter)
+	resolver := resolver.New(i)
 	resolver.Resolve(statements)
 
 	if lox.HadError {
 		return
 	}
 
-	interpreter.Interpret(statements)
+	i.Interpret(statements)
 }
