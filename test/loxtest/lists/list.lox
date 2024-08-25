@@ -1,0 +1,6 @@
+var list = List();
+list.append(1);
+list.append(2);
+list.append(3);
+print list.get(1); // expect: 2
+print list.size(); // expect: 3

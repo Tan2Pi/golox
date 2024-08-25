@@ -2,10 +2,11 @@ package interpreter
 
 import (
 	"fmt"
-	"golox/lox"
-	"golox/lox/environment"
-	"golox/lox/stmt"
-	"golox/lox/tokens"
+
+	"github.com/Tan2Pi/golox/lox"
+	"github.com/Tan2Pi/golox/lox/environment"
+	"github.com/Tan2Pi/golox/lox/stmt"
+	"github.com/Tan2Pi/golox/lox/tokens"
 )
 
 type Callable interface {
@@ -34,6 +35,7 @@ func (f *Function) Bind(instance *LoxInstance) *Function {
 	return NewFunction(f.Declaration, env, f.isInit)
 }
 
+//nolint:nonamedreturns // needed for panic-recover handling
 func (f *Function) Call(i *Interpreter, args []any) (returnable any) {
 	env := environment.New()
 	env.SetEnv(f.Closure)
@@ -60,16 +62,14 @@ func (f *Function) Call(i *Interpreter, args []any) (returnable any) {
 
 	ret := i.executeBlock(f.Declaration.Body, env)
 	if f.isInit {
-		returnable = f.Closure.GetAt(0, "this")
-		return
+		return f.Closure.GetAt(0, "this")
 	}
-	if ret != nil {
+	if lox.ShouldReturn(ret) {
 		if ret, ok := ret.(lox.ReturnValue); ok {
-			returnable = ret.Value
-			return
+			return ret.Value
 		}
 	}
-	return
+	return //nolint:nakedret // unavoidable
 }
 
 func (f *Function) Arity() int {
@@ -138,7 +138,6 @@ func NewLoxInstance(class *Class) *LoxInstance {
 }
 
 func (i *LoxInstance) Get(name tokens.Token) any {
-	//fmt.Printf("get: token: %+v, instance: %+v\n", name, i.fields)
 	if val, ok := i.fields[name.Lexeme]; ok {
 		return val
 	}
@@ -152,7 +151,6 @@ func (i *LoxInstance) Get(name tokens.Token) any {
 
 func (i *LoxInstance) Set(name tokens.Token, value any) {
 	i.fields[name.Lexeme] = value
-	//fmt.Printf("set: token: %+v, instance: %+v\n", name, i.fields)
 }
 
 func (i *LoxInstance) String() string {

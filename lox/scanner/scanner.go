@@ -2,14 +2,16 @@ package scanner
 
 import (
 	"fmt"
-	"golox/lox"
-	"golox/lox/tokens"
 	"os"
 	"strconv"
+
+	"github.com/Tan2Pi/golox/lox"
+	"github.com/Tan2Pi/golox/lox/tokens"
 )
 
 type Scanner struct {
 	source  string
+	runes   []rune
 	tokens  []*tokens.Token
 	start   int
 	current int
@@ -17,7 +19,13 @@ type Scanner struct {
 }
 
 func New(source string) *Scanner {
-	return &Scanner{source: source, tokens: make([]*tokens.Token, 0), start: 0, current: 0, line: 1}
+	return &Scanner{
+		source:  source,
+		runes:   []rune(source),
+		tokens:  make([]*tokens.Token, 0),
+		start:   0,
+		current: 0,
+		line:    1}
 }
 
 func (s *Scanner) ScanTokens() []*tokens.Token {
@@ -32,16 +40,17 @@ func (s *Scanner) ScanTokens() []*tokens.Token {
 		s.scanToken()
 	}
 
-	s.tokens = append(s.tokens, &tokens.Token{Type: tokens.Eof, Lexeme: "", Literal: nil, Line: s.line})
+	s.tokens = append(s.tokens, &tokens.Token{Type: tokens.EOF, Lexeme: "", Literal: nil, Line: s.line})
 	return s.tokens
 }
 
 func (s *Scanner) isAtEnd() bool {
-	return s.current >= len(s.source)
+	return s.current >= len(s.runes)
 }
 
 func (s *Scanner) scanToken() {
 	c := s.advance()
+	lox.Debug("c = %#v, start = %v, current = %v\n", string(c), s.start, s.current)
 	switch c {
 	case '(':
 		s.addToken(tokens.LeftParen)
@@ -76,29 +85,39 @@ func (s *Scanner) scanToken() {
 		t := mimicTernary(s.match('='), tokens.GreaterEqual, tokens.Greater)
 		s.addToken(t)
 	case '/':
-		if s.match('/') {
-			for !s.isAtEnd() && s.peek() != '\n' {
-				s.advance()
-			}
-		} else {
-			s.addToken(tokens.Slash)
-		}
+		s.commentsOrSlash()
 	case '"':
-
 		s.stringify()
 	case ' ', '\r', '\t':
 		// Ignore whitespace
+		break
 	case '\n':
 		s.line++
 	default:
-		if isDigit(c) {
-			s.number()
-		} else if isAlpha(c) {
-			s.identifier()
-		} else {
-			err := lox.NewLoxError(s.line, "Unexpected character.")
-			fmt.Fprintln(os.Stderr, err.Error())
+		s.scanDefault(c)
+	}
+}
+
+func (s *Scanner) scanDefault(c rune) {
+	switch {
+	case isDigit(c):
+		s.number()
+	case isAlpha(c):
+		s.identifier()
+	default:
+		err := lox.NewError(s.line, "Unexpected character.")
+		fmt.Fprintln(os.Stderr, err.Error())
+	}
+}
+
+func (s *Scanner) commentsOrSlash() {
+	if s.match('/') {
+		for s.peek() != '\n' && !s.isAtEnd() {
+			s.advance()
 		}
+		lox.Debug("peek() = %#v, start = %v, current = %v\n", string(s.peek()), s.start, s.current)
+	} else {
+		s.addToken(tokens.Slash)
 	}
 }
 
@@ -107,7 +126,8 @@ func (s *Scanner) identifier() {
 		s.advance()
 	}
 
-	text := string([]rune(s.source)[s.start:s.current])
+	text := string(s.runes[s.start:s.current])
+	lox.Debug("text = %#v, start = %v, current = %v\n", text, s.start, s.current)
 	t, exists := keywords[text]
 	if !exists {
 		t = tokens.Identifier
@@ -126,35 +146,29 @@ func (s *Scanner) number() {
 			s.advance()
 		}
 	}
-	value := string([]rune(s.source)[s.start:s.current])
+	value := string(s.runes[s.start:s.current])
 	num, err := strconv.ParseFloat(value, 32)
 	if err != nil {
-		err := lox.NewLoxError(s.line, "Invalid Number.")
-		fmt.Println(err)
+		fmt.Println(lox.NewError(s.line, "Invalid Number."))
 	}
 	s.createToken(tokens.Number, num)
 }
 
 func (s *Scanner) stringify() {
 	for s.peek() != '"' && !s.isAtEnd() {
-		//fmt.Printf("%s\n", string(s.peek()))
 		if s.peek() == '\n' {
 			s.line++
 		}
 		s.advance()
 	}
-	//fmt.Printf("%s\n", string(s.peek()))
 
 	if s.isAtEnd() {
-		panic(lox.NewLoxError(s.line, "Unterminated string."))
+		panic(lox.NewError(s.line, "Unterminated string."))
 	}
 
 	s.advance()
-	// runes := []rune(s.source)
-	// value := string(runes[s.start+1 : s.current-1])
-	v2 := s.source[s.start+1 : s.current-1]
-	//fmt.Printf("v2: %s\n", v2)
-	s.createToken(tokens.String, v2)
+	value := string(s.runes[s.start+1 : s.current-1])
+	s.createToken(tokens.String, value)
 }
 
 func (s *Scanner) match(expected rune) bool {
@@ -177,10 +191,10 @@ func (s *Scanner) peek() rune {
 }
 
 func (s *Scanner) peekNext() rune {
-	if s.current+1 >= len(s.source) {
+	if s.current+1 >= len(s.runes) {
 		return rune(0)
 	}
-	return []rune(s.source)[s.current+1]
+	return s.runes[s.current+1]
 }
 
 func (s *Scanner) advance() rune {
@@ -194,8 +208,7 @@ func (s *Scanner) addToken(kind tokens.TokenType) {
 }
 
 func (s *Scanner) createToken(kind tokens.TokenType, literal any) {
-	runes := []rune(s.source)
-	text := string(runes[s.start:s.current])
+	text := string(s.runes[s.start:s.current])
 	s.tokens = append(s.tokens, &tokens.Token{
 		Type:    kind,
 		Lexeme:  text,
@@ -216,17 +229,18 @@ func isDigit(c rune) bool {
 }
 
 func (s *Scanner) currentChar() rune {
-	return rune(s.source[s.current])
+	return s.runes[s.current]
 }
 
 func mimicTernary(condition bool, valIfTrue tokens.TokenType, valIfFalse tokens.TokenType) tokens.TokenType {
 	if condition {
 		return valIfTrue
-	} else {
-		return valIfFalse
 	}
+
+	return valIfFalse
 }
 
+//nolint:gochecknoglobals // this is effectively a static variable
 var keywords = map[string]tokens.TokenType{
 	"and":    tokens.And,
 	"class":  tokens.Class,

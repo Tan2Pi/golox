@@ -2,188 +2,72 @@ package interpreter
 
 import (
 	"fmt"
-	"golox/lox"
-	"golox/lox/tokens"
-	"time"
+
+	"github.com/Tan2Pi/golox/lox"
+	"github.com/Tan2Pi/golox/lox/tokens"
 )
 
 type Instance interface {
 	Get(name tokens.Token) any
 }
 
-type Clock struct{}
-
-func (c *Clock) Arity() int {
-	return 0
+type NativeError struct {
+	Msg string
 }
 
-func (c *Clock) Call(i *Interpreter, args []any) any {
-	return float64(time.Now().Unix())
+func (e NativeError) Error() string {
+	return e.Msg
 }
 
-func (c *Clock) String() string {
-	return "<native fn>"
+func NativePanic(format string, args ...any) {
+	panic(NativeError{
+		Msg: fmt.Sprintf(format, args...),
+	})
 }
 
-type LoxListClass struct {
-	Name string
+type NativeInstance struct {
+	GetFunc  func(name tokens.Token) any
+	Methods  map[string]*NativeMethod
+	Stringer func() string
 }
 
-type LoxListInstance struct {
-	Values []any
-}
-
-func (l *LoxListClass) Call(i *Interpreter, args []any) any {
-	return &LoxListInstance{
-		Values: []any{},
-	}
-}
-
-func (l *LoxListClass) Arity() int {
-	return 0
-}
-
-func (l *LoxListClass) String() string {
-	return "<native class>"
-}
-
-func (l *LoxListInstance) Call(i *Interpreter, args []any) any {
-	//fmt.Printf("args: %v", args)
-	return nil
-}
-
-func (l *LoxListInstance) Get(name tokens.Token) any {
-
-	if name.Lexeme == "append" {
-		appender := new(LoxListAppend)
-		appender.LoxListInstance = l
-		return appender
-	} else if name.Lexeme == "getAt" {
-		getter := new(LoxListGetAt)
-		getter.LoxListInstance = l
-		return getter
+func (n *NativeInstance) Get(name tokens.Token) any {
+	if method, ok := n.Methods[name.Lexeme]; ok {
+		return method
 	}
 
 	panic(lox.NewRuntimeError(name, fmt.Sprintf("Undefined property '%s'.", name.Lexeme)))
 }
 
-func (l *LoxListInstance) Arity() int {
-	return 0
+func (n *NativeInstance) String() string {
+	return n.Stringer()
 }
 
-func (l *LoxListInstance) append(item any) {
-	l.Values = append(l.Values, item)
+type NativeMethod struct {
+	CallFunc  func(i *Interpreter, args []any) any
+	ArityFunc func() int
 }
 
-func (l *LoxListInstance) getAt(index int) any {
-	return l.Values[index]
+func (n *NativeMethod) Call(i *Interpreter, args []any) any {
+	return n.CallFunc(i, args)
 }
 
-func (l *LoxListInstance) String() string {
-	return fmt.Sprintf("%v", l.Values)
+func (n *NativeMethod) Arity() int {
+	return n.ArityFunc()
 }
 
-type LoxListGetAt struct {
-	*LoxListInstance
+var _ Callable = (*LoxNativeConstructor)(nil)
+
+type LoxNativeConstructor struct {
+	Name     string
+	CallFunc func(i *Interpreter, args any) any
+	ArityVal int
 }
 
-func (l *LoxListGetAt) Call(i *Interpreter, args []any) any {
-	if index, ok := args[0].(float64); ok {
-		return l.getAt(int(index))
-	}
-	return nil
+func (c *LoxNativeConstructor) Call(i *Interpreter, args []any) any {
+	return c.CallFunc(i, args)
 }
 
-func (l *LoxListGetAt) Arity() int {
-	return 1
-}
-
-type LoxListAppend struct {
-	*LoxListInstance
-}
-
-func (l *LoxListAppend) Call(i *Interpreter, args []any) any {
-	l.append(args[0])
-	return nil
-}
-
-func (l *LoxListAppend) Arity() int {
-	return 1
-}
-
-type LoxMapClass struct {
-	Name string
-}
-
-func (l *LoxMapClass) Call(i *Interpreter, args []any) any {
-	return &LoxMapInstance{
-		Values: make(map[any]any),
-	}
-}
-
-func (l *LoxMapClass) Arity() int {
-	return 0
-}
-
-type LoxMapInstance struct {
-	Values map[any]any
-}
-
-func (l *LoxMapInstance) Call(i *Interpreter, args []any) any {
-	return nil
-}
-
-func (l *LoxMapInstance) Get(name tokens.Token) any {
-	if name.Lexeme == "put" {
-		putter := new(LoxMapPut)
-		putter.LoxMapInstance = l
-		return putter
-	} else if name.Lexeme == "get" {
-		getter := new(LoxMapGet)
-		getter.LoxMapInstance = l
-		return getter
-	}
-
-	panic(lox.NewRuntimeError(name, fmt.Sprintf("Undefined property '%s'.", name.Lexeme)))
-}
-
-func (l *LoxMapInstance) Arity() int {
-	return 0
-}
-
-func (l *LoxMapInstance) put(key, value any) {
-	l.Values[key] = value
-}
-
-func (l *LoxMapInstance) get(key any) any {
-	return l.Values[key]
-}
-
-func (l *LoxMapInstance) String() string {
-	return fmt.Sprintf("%v", l.Values)
-}
-
-type LoxMapPut struct {
-	*LoxMapInstance
-}
-
-func (l *LoxMapPut) Call(i *Interpreter, args []any) any {
-	l.put(args[0], args[1])
-	return nil
-}
-
-func (l *LoxMapPut) Arity() int {
-	return 2
-}
-
-type LoxMapGet struct {
-	*LoxMapInstance
-}
-
-func (l *LoxMapGet) Call(i *Interpreter, args []any) any {
-	return l.get(args[0])
-}
-
-func (l *LoxMapGet) Arity() int {
-	return 1
+func (c *LoxNativeConstructor) Arity() int {
+	return c.ArityVal
 }

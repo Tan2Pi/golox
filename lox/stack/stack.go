@@ -1,5 +1,7 @@
 package stack
 
+import "iter"
+
 type Stack[T any] struct {
 	items []T
 }
@@ -32,4 +34,14 @@ func (s *Stack[T]) Size() int {
 
 func (s *Stack[T]) Get(i int) T {
 	return s.items[i]
+}
+
+func (s *Stack[T]) All() iter.Seq2[int, T] {
+	return func(yield func(int, T) bool) {
+		for i, item := range s.items {
+			if !yield(i, item) {
+				return
+			}
+		}
+	}
 }

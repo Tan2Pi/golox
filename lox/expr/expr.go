@@ -1,6 +1,6 @@
 package expr
 
-import "golox/lox/tokens"
+import "github.com/Tan2Pi/golox/lox/tokens"
 
 type Visitor interface {
 	VisitBinaryExpr(expr *Binary) any
@@ -23,7 +23,7 @@ func (e *expr) Express() Expr {
 	return e
 }
 
-func (e *expr) Accept(visitor Visitor) any {
+func (e *expr) Accept(_ Visitor) any {
 	return nil
 }
 

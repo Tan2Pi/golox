@@ -2,15 +2,17 @@ package lox
 
 import (
 	"fmt"
-	"golox/lox/tokens"
 	"os"
+
+	"github.com/Tan2Pi/golox/lox/tokens"
 )
 
-var HadError = false
+var (
+	HadError        = false //nolint:gochecknoglobals // need to track errors globally
+	HadRuntimeError = false //nolint:gochecknoglobals // need to track errors globally
+)
 
-var HadRuntimeError = false
-
-type LoxError struct {
+type Error struct {
 	line    int
 	message string
 }
@@ -26,7 +28,7 @@ func ReportRuntimeError(err error) {
 }
 
 func (e *RuntimeError) Error() string {
-	//return reportString(e.Token.Line, "", e.Msg)
+	// return reportString(e.Token.Line, "", e.Msg)
 	return fmt.Sprintf("%v\n[line %+v]", e.Msg, e.Token.Line)
 }
 
@@ -34,19 +36,19 @@ func NewRuntimeError(token tokens.Token, msg string) *RuntimeError {
 	return &RuntimeError{Token: token, Msg: msg}
 }
 
-func LoxErrorHandler(token tokens.Token, message string) {
-	if token.Type == tokens.Eof {
+func ErrorHandler(token tokens.Token, message string) {
+	if token.Type == tokens.EOF {
 		report(token.Line, "at end", message)
 	} else {
 		report(token.Line, "at '"+token.Lexeme+"'", message)
 	}
 }
 
-func NewLoxError(line int, message string) error {
-	return &LoxError{line, message}
+func NewError(line int, message string) error {
+	return &Error{line, message}
 }
 
-func (e *LoxError) Error() string {
+func (e *Error) Error() string {
 	return fmt.Sprintf("[line %v] Error: %v", e.line, e.message)
 }
 

@@ -1,0 +1,12 @@
+var map = Map();
+map.put("hello", 1);
+map.put("world", 2);
+print map.get("hello"); // expect: 1
+print map.get("world"); // expect: 2
+print map.contains("bye"); // expect: false
+print map.contains("hello"); // expect: true
+print map.size(); // expect: 2
+print map; // expect: map[hello:1 world:2]
+map.remove("hello");
+print map.contains("hello"); // expect: false
+print map.size(); // expect: 1
