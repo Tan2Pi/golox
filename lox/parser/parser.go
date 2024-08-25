@@ -3,10 +3,15 @@ package parser
 import (
 	"errors"
 	"fmt"
-	"golox/lox"
-	"golox/lox/expr"
-	"golox/lox/stmt"
-	"golox/lox/tokens"
+
+	"github.com/Tan2Pi/golox/lox"
+	"github.com/Tan2Pi/golox/lox/expr"
+	"github.com/Tan2Pi/golox/lox/stmt"
+	"github.com/Tan2Pi/golox/lox/tokens"
+)
+
+const (
+	maxNumParams = 255
 )
 
 type Parser struct {
@@ -154,11 +159,12 @@ func (p *Parser) forStatement() stmt.Stmt {
 	p.consume(tokens.LeftParen, "Expect '(' after 'for'.")
 
 	var initializer stmt.Stmt
-	if p.match(tokens.Semicolon) {
+	switch {
+	case p.match(tokens.Semicolon):
 		initializer = nil
-	} else if p.match(tokens.Var) {
+	case p.match(tokens.Var):
 		initializer = p.varDeclaration()
-	} else {
+	default:
 		initializer = p.expressionStatement()
 	}
 
@@ -259,7 +265,7 @@ func (p *Parser) function(kind string) *stmt.Function {
 	params := make([]tokens.Token, 0)
 	if !p.check(tokens.RightParen) {
 		for {
-			if len(params) >= 255 {
+			if len(params) >= maxNumParams {
 				p.error(*p.peek(), "Can't have more than 255 parameters.")
 			}
 
@@ -304,7 +310,7 @@ func (p *Parser) assignment() expr.Expr {
 				Value: value,
 			}
 		case *expr.Get:
-			get := e.(*expr.Get)
+			get := e.(*expr.Get) //nolint:errcheck // already type checked in switch
 			return &expr.Set{
 				Object: get.Object,
 				Name:   get.Name,
@@ -442,6 +448,7 @@ func (p *Parser) call() expr.Expr {
 	e := p.primary()
 
 	for {
+		//nolint:gocritic // switch doesn't seem that much better here
 		if p.match(tokens.LeftParen) {
 			e = p.finishCall(e)
 		} else if p.match(tokens.Dot) {
@@ -463,7 +470,7 @@ func (p *Parser) finishCall(callee expr.Expr) expr.Expr {
 
 	if !p.check(tokens.RightParen) {
 		for {
-			if len(args) >= 255 {
+			if len(args) >= maxNumParams {
 				p.error(*p.peek(), "Can't have more than 255 arguments.")
 			}
 			args = append(args, p.expression())
@@ -503,13 +510,13 @@ func (p *Parser) consume(t tokens.TokenType, msg string) *tokens.Token {
 }
 
 func (p *Parser) error(t tokens.Token, msg string) {
-	lox.LoxErrorHandler(t, msg)
+	lox.ErrorHandler(t, msg)
 	p.hadError = false
 	panic(lox.ParseError{Token: t, Msg: msg})
 }
 
 func (p *Parser) isAtEnd() bool {
-	return p.peek().Type == tokens.Eof
+	return p.peek().Type == tokens.EOF
 }
 
 func (p *Parser) match(types ...tokens.TokenType) bool {
@@ -545,6 +552,7 @@ func (p *Parser) synchronize() {
 		if p.previous().Type == tokens.Semicolon {
 			return
 		}
+		//nolint:exhaustive // default is acceptable for other types
 		switch p.peek().Type {
 		case tokens.Class:
 			fallthrough
