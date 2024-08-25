@@ -1,8 +1,8 @@
 package stmt
 
 import (
-	"golox/lox/expr"
-	"golox/lox/tokens"
+	"github.com/Tan2Pi/golox/lox/expr"
+	"github.com/Tan2Pi/golox/lox/tokens"
 )
 
 type Visitor interface {
@@ -28,7 +28,7 @@ func (s *stmt) Statement() Stmt {
 	return s
 }
 
-func (s *stmt) Accept(v Visitor) any {
+func (s *stmt) Accept(_ Visitor) any {
 	return nil
 }
 

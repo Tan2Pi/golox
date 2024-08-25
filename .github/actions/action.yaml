@@ -1,6 +1,0 @@
-# action.yml
-name: 'Golox test suite'
-description: 'Runs the test suite from crafting interpreters against Golox'
-runs:
-  using: 'docker'
-  image: 'Dockerfile'
