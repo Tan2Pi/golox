@@ -1,0 +1,2 @@
+var list = List();
+print list.get("one"); // expect runtime error: Cannot index into List with parameter of type 'string'.

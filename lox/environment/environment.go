@@ -2,8 +2,9 @@ package environment
 
 import (
 	"fmt"
-	"golox/lox"
-	"golox/lox/tokens"
+
+	"github.com/Tan2Pi/golox/lox"
+	"github.com/Tan2Pi/golox/lox/tokens"
 )
 
 type Env struct {
@@ -28,7 +29,6 @@ func (e *Env) Enclosing() *Env {
 
 func (e *Env) Define(name string, value any) {
 	e.values[name] = value
-	//fmt.Printf("env: %+v", e.values)
 }
 
 func (e *Env) Assign(name tokens.Token, value any) {
@@ -48,7 +48,6 @@ func (e *Env) Assign(name tokens.Token, value any) {
 }
 
 func (e *Env) Get(name tokens.Token) any {
-	//fmt.Printf("env: %+v", e.values)
 	if val, ok := e.values[name.Lexeme]; ok {
 		return val
 	}
@@ -60,7 +59,6 @@ func (e *Env) Get(name tokens.Token) any {
 	panic(lox.NewRuntimeError(name,
 		fmt.Sprintf("Undefined variable '%s'.", name.Lexeme),
 	))
-
 }
 
 func (e *Env) GetAt(dist int, name string) any {
@@ -73,7 +71,7 @@ func (e *Env) AssignAt(dist int, name tokens.Token, value any) {
 
 func (e *Env) ancestor(dist int) *Env {
 	ancestor := e
-	for i := 0; i < dist; i++ {
+	for range dist {
 		ancestor = ancestor.enclosing
 	}
 	return ancestor

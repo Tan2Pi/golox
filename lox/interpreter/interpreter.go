@@ -2,12 +2,13 @@ package interpreter
 
 import (
 	"fmt"
-	"golox/lox"
-	"golox/lox/environment"
-	"golox/lox/expr"
-	"golox/lox/stmt"
-	"golox/lox/tokens"
 	"strings"
+
+	"github.com/Tan2Pi/golox/lox"
+	"github.com/Tan2Pi/golox/lox/environment"
+	"github.com/Tan2Pi/golox/lox/expr"
+	"github.com/Tan2Pi/golox/lox/stmt"
+	"github.com/Tan2Pi/golox/lox/tokens"
 )
 
 type Interpreter struct {
@@ -22,8 +23,8 @@ func NewInterpreter() *Interpreter {
 		locals:  make(map[expr.Expr]int),
 	}
 	i.globals.Define("clock", &Clock{})
-	i.globals.Define("List", &LoxListClass{})
-	i.globals.Define("Map", &LoxMapClass{})
+	i.globals.Define("List", LoxListConstructor())
+	i.globals.Define("Map", LoxMapConstructor())
 	i.env = i.globals
 	return i
 }
@@ -31,6 +32,7 @@ func NewInterpreter() *Interpreter {
 func (i *Interpreter) Interpret(statements []stmt.Stmt) {
 	defer func() {
 		if r := recover(); r != nil {
+			// panic(r.(error))
 			lox.ReportRuntimeError(r.(error))
 		}
 	}()
@@ -44,6 +46,7 @@ func (i *Interpreter) VisitBinaryExpr(e *expr.Binary) any {
 	left := i.evaluate(e.Left)
 	right := i.evaluate(e.Right)
 
+	//nolint:exhaustive // Operator type is constrained by grammar.
 	switch e.Operator.Type {
 	case tokens.Minus:
 		checkNumberOperands(*e.Operator, left, right)
@@ -103,10 +106,20 @@ func (i *Interpreter) VisitCallExpr(e *expr.Call) any {
 			msg := fmt.Sprintf("Expected %v arguments but got %v.", function.Arity(), len(args))
 			panic(lox.NewRuntimeError(e.Paren, msg))
 		}
+		defer func() {
+			if r := recover(); r != nil {
+				switch ret := r.(type) {
+				case NativeError:
+					panic(lox.NewRuntimeError(e.Paren, ret.Error()))
+				default:
+					panic(r)
+				}
+			}
+		}()
 		return function.Call(i, args)
-	} else {
-		panic(lox.NewRuntimeError(e.Paren, "Can only call functions and classes."))
 	}
+
+	panic(lox.NewRuntimeError(e.Paren, "Can only call functions and classes."))
 }
 
 func (i *Interpreter) VisitGetExpr(e *expr.Get) any {
@@ -177,6 +190,7 @@ func (i *Interpreter) VisitThisExpr(e *expr.This) any {
 func (i *Interpreter) VisitUnaryExpr(e *expr.Unary) any {
 	right := i.evaluate(e.Right)
 
+	//nolint:exhaustive // Operator type is constrained by grammar.
 	switch e.Operator.Type {
 	case tokens.Minus:
 		checkNumberOperand(*e.Operator, right)
@@ -195,9 +209,9 @@ func (i *Interpreter) VisitVariableExpr(e *expr.Variable) any {
 func (i *Interpreter) lookupVariable(name tokens.Token, e expr.Expr) any {
 	if dist, ok := i.locals[e]; ok {
 		return i.env.GetAt(dist, name.Lexeme)
-	} else {
-		return i.globals.Get(name)
 	}
+
+	return i.globals.Get(name)
 }
 
 func (i *Interpreter) VisitAssignExpr(e *expr.Assign) any {
@@ -246,8 +260,8 @@ func (i *Interpreter) VisitReturnStmt(stmt *stmt.Return) any {
 	if stmt.Value != nil {
 		value = i.evaluate(stmt.Value)
 	}
-	panic(lox.NewReturnVal(value))
-	//return NewReturnVal(value)
+
+	return lox.NewReturnVal(value)
 }
 
 func (i *Interpreter) VisitVariableStmt(s *stmt.Variable) any {
@@ -261,10 +275,10 @@ func (i *Interpreter) VisitVariableStmt(s *stmt.Variable) any {
 
 func (i *Interpreter) VisitWhileStmt(s *stmt.While) any {
 	for isTruthy(i.evaluate(s.Condition)) {
-		i.execute(s.Body)
-		// if res != nil {
-		// 	return res
-		// }
+		res := i.execute(s.Body)
+		if lox.ShouldReturn(res) {
+			return res
+		}
 	}
 	return nil
 }
@@ -307,8 +321,7 @@ func (i *Interpreter) VisitClassStmt(s *stmt.Class) any {
 }
 
 func (i *Interpreter) execute(stmt stmt.Stmt) any {
-	stmt.Accept(i)
-	return nil
+	return stmt.Accept(i)
 }
 
 func (i *Interpreter) Resolve(e expr.Expr, depth int) {
@@ -323,8 +336,10 @@ func (i *Interpreter) executeBlock(stmts []stmt.Stmt, env *environment.Env) any 
 
 	i.env = env
 	for _, stmt := range stmts {
-		i.execute(stmt)
-
+		res := i.execute(stmt)
+		if lox.ShouldReturn(res) {
+			return res
+		}
 	}
 	return nil
 }

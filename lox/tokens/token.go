@@ -7,7 +7,7 @@ type Token struct {
 	Line    int
 }
 
-// go:generate stringer -type=TokenType
+//go:generate stringer -type=TokenType
 type TokenType int
 
 const (
@@ -23,7 +23,7 @@ const (
 	Slash
 	Star
 
-	// 1-2 character tokens
+	// 1-2 character tokens.
 	Bang
 	BangEqual
 	Equal
@@ -33,12 +33,12 @@ const (
 	Less
 	LessEqual
 
-	// Literals
+	// Literals.
 	Identifier
 	String
 	Number
 
-	// Keywords
+	// Keywords.
 	And
 	Class
 	Else
@@ -56,5 +56,5 @@ const (
 	Var
 	While
 
-	Eof
+	EOF
 )
