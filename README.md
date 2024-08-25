@@ -7,7 +7,7 @@ It is a relatively faithful port of the Java tree-walk interpeter (jlox) from th
 
 `glox` can be installed using the Go toolchain. The minimum Go version is 1.23.
 ```bash
-go install github.com/Tan2Pi/golox@latest
+go install github.com/Tan2Pi/golox/cmd/glox@latest
 ```
 
 ## Usage
